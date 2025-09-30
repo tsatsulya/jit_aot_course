@@ -38,8 +38,8 @@ class CondJump : public Instruction {
 public:
     CondJump(Value* cond, BasicBlock* t, BasicBlock* f) : Instruction(InstrKind::CondJump, {cond}), trueTarget(t), falseTarget(f) {}
 
-    std::string str(NameContext& /*ctx*/) const override {
-        return "cjump " + operands[0]->str(*(new NameContext())) + ", " + trueTarget->getName() + ", " + falseTarget->getName();
+    std::string str(NameContext& ctx) const override {
+        return "cjump " + ctx.getValueName(operands[0]) + ", " + trueTarget->getName() + ", " + falseTarget->getName();
     }
 
     BasicBlock* getTrueTarget() const { return trueTarget; }
@@ -62,7 +62,11 @@ public:
         bool first = true;
         for (const auto& [pred, val] : incoming) {
             if (!first) s += ", ";
-            s += "[" + ctx.getValueName(val) + ", " + pred->getName() + "]";
+            if (!pred || !val) {
+                s += "[INVALID]";
+            } else {
+                s += "[" + ctx.getValueName(val) + ", " + pred->getName() + "]";
+            }
             first = false;
         }
         return s;

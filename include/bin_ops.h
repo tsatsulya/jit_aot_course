@@ -1,6 +1,7 @@
 #pragma once
 
 #include "instruction.h"
+#include "context.h"
 
 enum class CmpOp {
     Eq, Ne, Lt, Le, Gt, Ge
@@ -18,7 +19,7 @@ public:
             case InstrKind::Sub: op = "sub"; break;
             default: op = "unknown"; break;
         }
-        return ctx.getValueName(this) + " = " + op + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
+    return ctx.getValueName(this) + " = " + op + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
     }
 };
 
@@ -30,6 +31,6 @@ public:
 
     std::string str(NameContext& ctx) const override {
         const char* names[] = {"eq","ne","lt","le","gt","ge"};
-        return ctx.getValueName(this) + " = cmp." + names[(int)cmpOp] + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
+    return ctx.getValueName(this) + " = cmp." + names[(int)cmpOp] + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
     }
 };

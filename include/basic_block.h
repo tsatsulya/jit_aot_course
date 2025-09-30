@@ -8,6 +8,8 @@
 
 #include "instruction.h"
 
+class NameContext;
+
 class BasicBlock {
     std::string name;
     std::vector<std::unique_ptr<Instruction>> instructions;
@@ -22,12 +24,5 @@ public:
     Instr& createInstr(Args&&... args) {
         instructions.push_back(std::make_unique<Instr>(std::forward<Args>(args)...));
         return static_cast<Instr&>(*instructions.back());
-    }
-
-    void dumpBasicBlock(const BasicBlock& bb, NameContext& ctx) {
-        std::cout << bb.getName() << ":\n";
-        for (const auto& instr : bb.getInstructions()) {
-            std::cout << "  " << instr->str(ctx) << "\n";
-        }
     }
 };
