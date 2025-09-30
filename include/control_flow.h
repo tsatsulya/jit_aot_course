@@ -30,7 +30,6 @@ public:
     BasicBlock* getTarget() const { return target; }
 };
 
-// CondJump Instruction (conditional branch)
 class CondJump : public Instruction {
     BasicBlock* trueTarget;
     BasicBlock* falseTarget;
