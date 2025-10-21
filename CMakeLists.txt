@@ -15,3 +15,14 @@ add_executable(jit_aot_course
 )
 
 target_include_directories(jit_aot_course PRIVATE include)
+
+add_executable(graph_examples
+    examples.cpp
+    src/context.cpp
+    src/instruction.cpp
+)
+
+target_include_directories(graph_examples PRIVATE include)
+
+enable_testing()
+add_test(NAME GraphExamples COMMAND graph_examples)

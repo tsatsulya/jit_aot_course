@@ -1,59 +1,126 @@
-#include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
-
+#include "program.h"
 #include "bin_ops.h"
 #include "control_flow.h"
-#include "instruction.h"
-#include "program.h"
+#include <iostream>
 
-int main() {
-    Program prog;
-    Function& f = prog.createFunction("factorial");
+void createCompleteFactorial(Program& program) {
+    Function& fact = program.createFunction("just_factorial");
+    Parameter* n = fact.createParam("n");
 
-    Parameter* n = f.createParam("n");
-    static Constant one_const(1, "1");
+    BasicBlock* entry = fact.createBasicBlock("entry");
+    BasicBlock* check = fact.createBasicBlock("check");
+    BasicBlock* base_case = fact.createBasicBlock("base_case");
+    BasicBlock* recursive = fact.createBasicBlock("recursive");
+    BasicBlock* compute = fact.createBasicBlock("compute");
+    BasicBlock* exit = fact.createBasicBlock("exit");
 
-    BasicBlock* entry = f.createBasicBlock("entry");
-    BasicBlock* loopCond = f.createBasicBlock("loopCond");
-    BasicBlock* loopBody = f.createBasicBlock("loopBody");
-    BasicBlock* afterLoop = f.createBasicBlock("afterLoop");
+    Constant* one = fact.createConstant(1, "one");
+    [[maybe_unused]] Constant* zero = fact.createConstant(0, "zero");
 
-    entry->createInstr<Jump>(loopCond);
+    entry->createInstr<Jump>("check");
 
-    Phi& i_phi = loopCond->createInstr<Phi>();
-    Phi& result_phi = loopCond->createInstr<Phi>();
+    auto& cmp = check->createInstr<Cmp>(CmpOp::Le, n, one);
+    NameContext ctx;
+    std::string condStr = cmp.str(ctx);
+    check->createInstr<CondJump>(condStr, "base_case", "recursive");
 
-    Cmp& cmp = loopCond->createInstr<Cmp>(CmpOp::Gt, &i_phi, &one_const);
-    loopCond->createInstr<CondJump>(&cmp, loopBody, afterLoop);
+    base_case->createInstr<Return>(one);
 
-    BinaryOp& mul = loopBody->createInstr<BinaryOp>(InstrKind::Mul, &result_phi, &i_phi);
-    BinaryOp& sub = loopBody->createInstr<BinaryOp>(InstrKind::Sub, &i_phi, &one_const);
-    loopBody->createInstr<Jump>(loopCond);
+    auto& n_minus_one = recursive->createInstr<BinaryOp>(InstrKind::Sub, n, one);
+    recursive->createInstr<Jump>("compute");
 
-    i_phi.addIncoming(entry, n);
-    result_phi.addIncoming(entry, &one_const);
-    i_phi.addIncoming(loopBody, &sub);
-    result_phi.addIncoming(loopBody, &mul);
+    auto& computed_result = compute->createInstr<BinaryOp>(InstrKind::Mul, n, &n_minus_one);
+    compute->createInstr<Jump>("exit");
 
-    afterLoop->createInstr<Return>(&result_phi);
-
-    prog.dump();
-    return 0;
+    exit->createInstr<Return>(&computed_result);
 }
 
-// Function factorial(%n)
-// entry:
-//   jump loopCond
-// loopCond:
-//   %v0 = phi [%n, entry], [%v1, loopBody]
-//   %v2 = phi [1, entry], [%v3, loopBody]
-//   %v4 = cmp.gt %v0, 1
-//   cjump %v4, loopBody, afterLoop
-// loopBody:
-//   %v3 = mul %v2, %v0
-//   %v1 = sub %v0, 1
-//   jump loopCond
-// afterLoop:
-//   return %v2
+void createIterativeFactorial(Program& program) {
+    Function& fact = program.createFunction("iterative_factorial");
+    Parameter* n = fact.createParam("n");
+
+    BasicBlock* entry = fact.createBasicBlock("entry");
+    BasicBlock* loop_check = fact.createBasicBlock("loop_check");
+    BasicBlock* loop_body = fact.createBasicBlock("loop_body");
+    BasicBlock* exit = fact.createBasicBlock("exit");
+
+    Constant* one = fact.createConstant(1, "one");
+    Constant* zero = fact.createConstant(0, "zero");
+
+    auto& result = entry->createInstr<BinaryOp>(InstrKind::Add, one, zero);
+    auto& i = entry->createInstr<BinaryOp>(InstrKind::Add, n, zero);
+    entry->createInstr<Jump>("loop_check");
+
+    auto& cmp = loop_check->createInstr<Cmp>(CmpOp::Gt, &i, zero);
+    NameContext ctx;
+    std::string condStr = cmp.str(ctx);
+    loop_check->createInstr<CondJump>(condStr, "loop_body", "exit");
+
+    auto& new_result = loop_body->createInstr<BinaryOp>(InstrKind::Mul, &result, &i);
+    [[maybe_unused]] auto& new_i = loop_body->createInstr<BinaryOp>(InstrKind::Sub, &i, one);
+    loop_body->createInstr<Jump>("loop_check");
+
+    exit->createInstr<Return>(&new_result);
+}
+
+void createSimpleFactorial(Program& program) {
+    Function& fact = program.createFunction("simple_factorial");
+    fact.createParam("n");
+
+    BasicBlock* entry = fact.createBasicBlock("entry");
+    [[maybe_unused]] BasicBlock* exit = fact.createBasicBlock("exit");
+
+    Constant* one = fact.createConstant(1, "one");
+    entry->createInstr<Return>(one);
+}
+
+void createConditionalFactorial(Program& program) {
+
+    Function& fact = program.createFunction("conditional_factorial");
+    Parameter* n = fact.createParam("n");
+
+    BasicBlock* entry = fact.createBasicBlock("entry");
+    BasicBlock* check = fact.createBasicBlock("check");
+    BasicBlock* base = fact.createBasicBlock("base");
+    BasicBlock* recurse = fact.createBasicBlock("recurse");
+
+    Constant* one = fact.createConstant(1, "one");
+    [[maybe_unused]] Constant* zero = fact.createConstant(0, "zero");
+
+    entry->createInstr<Jump>("check");
+
+    auto& cmp = check->createInstr<Cmp>(CmpOp::Le, n, one);
+    NameContext ctx;
+    std::string condStr = cmp.str(ctx);
+    check->createInstr<CondJump>(condStr, "base", "recurse");
+
+    base->createInstr<Return>(one);
+
+    auto& n_minus_one = recurse->createInstr<BinaryOp>(InstrKind::Sub, n, one);
+    auto& result = recurse->createInstr<BinaryOp>(InstrKind::Mul, n, &n_minus_one);
+    recurse->createInstr<Return>(&result);
+}
+
+int main() {
+    Program program;
+
+    createSimpleFactorial(program);
+    createConditionalFactorial(program);
+    createCompleteFactorial(program);
+    createIterativeFactorial(program);
+
+    for (auto& func : program.getFunctions()) {
+        CFGAnalysis::buildCFG(*func);
+    }
+
+    std::cout << "\n" << std::string(60, '=') << "\n";
+    std::cout << "BASIC FUNCTION DUMP:\n";
+    std::cout << std::string(60, '=') << "\n";
+    program.dump();
+
+    std::cout << "\n" << std::string(60, '=') << "\n";
+    std::cout << "CFG ANALYSIS:\n";
+    std::cout << std::string(60, '=') << "\n";
+    program.dumpWithCFG();
+    return 0;
+}

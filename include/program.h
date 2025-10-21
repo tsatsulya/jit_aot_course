@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include "context.h"
+#include "cfg.h"
 
 #include "function.h"
 class Program {
@@ -27,9 +28,31 @@ public:
             instr_count++;
         }
     }
+
+    void dumpFunctionCFG(const Function& func) const {
+        NameContext ctx;
+        std::cout << "Function " << func.getName() << " CFG:\n";
+
+        for (const auto& bb : func.getBasicBlocks()) {
+            std::cout << bb->getName() << ":\n";
+            std::cout << "  Predecessors: ";
+            for (auto pred : bb->getPredecessors()) {
+                std::cout << pred->getName() << " ";
+            }
+            std::cout << "\n  Successors: ";
+            for (auto succ : bb->getSuccessors()) {
+                std::cout << succ->getName() << " ";
+            }
+            std::cout << "\n";
+
+            dumpBasicBlock(*bb, ctx);
+            std::cout << "\n";
+        }
+    }
+
     void dumpFunction(const Function& func) const {
         NameContext ctx;
-        std::cout << "Function " << func.getName() << "(";
+        std::cout << "\n\nFunction " << func.getName() << "(";
         for (size_t i = 0; i < func.getParams().size(); ++i) {
             std::cout << func.getParams()[i]->str(ctx);
             if (i + 1 < func.getParams().size()) std::cout << ", ";
@@ -45,5 +68,15 @@ public:
         for (const auto& func : functions) {
             dumpFunction(*func);
         }
+    }
+
+    void dumpWithCFG() const {
+        for (const auto& func : functions) {
+            dumpFunctionCFG(*func);
+        }
+    }
+
+    std::vector<std::unique_ptr<Function>> &getFunctions() {
+        return functions;
     }
 };
