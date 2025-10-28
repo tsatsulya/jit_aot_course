@@ -1,5 +1,4 @@
 #include "program.h"
-#include "loop_analysis.h"
 #include "bin_ops.h"
 #include "control_flow.h"
 

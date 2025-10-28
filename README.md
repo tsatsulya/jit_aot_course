@@ -225,5 +225,109 @@ A: A
 
 ### Tests for loop analysis
 
+```sh
+Test 1:
+CFG: A: B, B: C, D, C: , D: E, E: B
+
+Loop Analysis for Function: test1
+========================================
+Loop (Depth: 0):
+  Header: B
+  Latch: E
+  Blocks: D E B
+  Exit blocks: B
+  Innermost: Yes
 ```
+
+```sh
+Test 2:
+CFG: A: B, B: C, C: D, F, D: E, F, E: B, F:
+
+Loop Analysis for Function: test2
+========================================
+Loop (Depth: 0):
+  Header: B
+  Latch: E
+  Blocks: D C E B
+  Exit blocks: C D
+  Innermost: Yes
+```
+
+```sh
+Test 3:
+CFG: A: B, B: C, D, C: E, F, D: F, E: , F: G, G: B, H, H: A
+
+Loop Analysis for Function: test3
+========================================
+Loop (Depth: 0):
+  Header: A
+  Latch: H
+  Blocks: D B C F G H A
+  Exit blocks: C
+  Innermost: No
+
+  Loop (Depth: 1):
+    Header: B
+    Latch: G
+    Blocks: C F G D B
+    Exit blocks: G C
+    Innermost: Yes
+
+Loop (Depth: 1):
+  Header: B
+  Latch: G
+  Blocks: C F G D B
+  Exit blocks: G C
+  Innermost: Yes
+```
+
+```sh
+Test 4:
+CFG: A: B, B: C, F, C: D, D: , E: D, F: E, G, G: D
+
+Loop Analysis for Function: test4
+========================================
+No loops found.
+```
+
+```sh
+Test 5:
+CFG: A: B, B: C, J, C: D, D: E, C, E: F, F: E, G, G: H, I, H: B, I: K, J: C, K:
+
+Loop Analysis for Function: test5
+========================================
+Loop (Depth: 0):
+  Header: B
+  Latch: H
+  Blocks: J C E F G D H B
+  Exit blocks: G
+  Innermost: No
+
+  Loop (Depth: 1):
+    Header: C
+    Latch: D
+    Blocks: D C
+    Exit blocks: D
+    Innermost: Yes
+
+  Loop (Depth: 1):
+    Header: E
+    Latch: F
+    Blocks: F E
+    Exit blocks: F
+    Innermost: Yes
+
+Loop (Depth: 1):
+  Header: C
+  Latch: D
+  Blocks: D C
+  Exit blocks: D
+  Innermost: Yes
+
+Loop (Depth: 1):
+  Header: E
+  Latch: F
+  Blocks: F E
+  Exit blocks: F
+  Innermost: Yes
 ```

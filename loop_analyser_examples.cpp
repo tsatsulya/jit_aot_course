@@ -9,13 +9,15 @@ public:
         testGraph1();
         testGraph2();
         testGraph3();
+        testGraph4();
+        testGraph5();
 
         std::cout << "All tests passed!\n";
     }
 
 private:
     static void testGraph1() {
-        std::cout << "Test 1: Simple Loop (A->B->C, B->D->E->B)\n";
+        std::cout << "Test 1:\n";
         std::cout << "CFG: A: B, B: C, D, C: , D: E, E: B\n";
 
         Program program;
@@ -50,10 +52,11 @@ private:
         assert(!loop->contains(C));
 
         auto exits = LoopAnalysis::getLoopExits(loop);
-        assert(exits.size() == 1 && "Should have one exit");
-        assert(exits.count(B) && "Exit should be from B to C");
+        assert(exits.size() == 1);
+        assert(exits.count(B));
 
         std::cout << "Test 1 passed: Found loop B->D->E->B\n\n";
+        LoopAnalysis::analyzeLoopNesting(func);
 
         for (auto l : loops) delete l;
     }
@@ -103,6 +106,7 @@ private:
         assert(exits.count(D));
 
         std::cout << "Test 2 passed: Found loop B->C->D->E->B\n\n";
+        LoopAnalysis::analyzeLoopNesting(func);
 
         for (auto l : loops) delete l;
     }
@@ -181,10 +185,12 @@ private:
         assert(innerLoop->parent == outerLoop);
 
         std::cout << "Test 3 passed\n";
-        std::cout << "  Outer loop: A->...->H->A\n";
-        if (innerLoop) {
-            std::cout << "  Inner loop: B->...->G->B (nested)\n";
-        }
+        LoopAnalysis::analyzeLoopNesting(func);
+
+        // std::cout << "  Outer loop: A->...->H->A\n";
+        // if (innerLoop) {
+        //     std::cout << "  Inner loop: B->...->G->B (nested)\n";
+        // }
         std::cout << "\n";
 
         for (auto l : loops) delete l;
@@ -220,6 +226,7 @@ private:
         assert(loops.size() == 0);
 
         std::cout << "Test 4 passed\n";
+        LoopAnalysis::analyzeLoopNesting(func);
 
         for (auto l : loops) delete l;
     }
@@ -270,7 +277,7 @@ private:
         }
 
         assert(outerLoop != nullptr);
-        assert(outerLoop->latch->getName());
+        assert(outerLoop->latch->getName() == "H");
 
         assert(outerLoop->contains(B));
         assert(outerLoop->contains(C));
@@ -295,7 +302,6 @@ private:
             assert(innerLoopCD->contains(D));
             assert(innerLoopCD->parent == outerLoop);
         }
-
         LoopAnalysis::Loop* selfLoopEF = nullptr;
         for (auto loop : loops) {
             if (loop->header->getName() == "E" && loop->latch->getName() == "F") {
@@ -316,13 +322,12 @@ private:
         assert(!outerLoop->contains(K));
 
         std::cout << "Test 5 passed:\n";
-        std::cout << "  Outer loop: B->...->H->B\n";
-        if (innerLoopCD) {
-            std::cout << "  Inner loop: C->D->C\n";
-        }
-        if (selfLoopEF) {
-            std::cout << "  Self-loop: E->F->E\n";
-        }
+        // std::cout << "  Outer loop: B->...->H->B\n";
+        LoopAnalysis::analyzeLoopNesting(func);
+        // std::cout << "  Inner loop: C->D->C\n";
+        // LoopAnalysis::printLoopInfo(innerLoopCD, 1);
+        // std::cout << "  Self-loop: E->F->E\n";
+        // LoopAnalysis::printLoopInfo(selfLoopEF, 1);
         std::cout << "\n";
 
         for (auto l : loops) delete l;
