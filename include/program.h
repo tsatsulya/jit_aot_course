@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include "context.h"
 #include "cfg.h"
-
+#include "loop_analysis.h"
 #include "function.h"
 class Program {
     std::vector<std::unique_ptr<Function>> functions;
@@ -78,5 +78,20 @@ public:
 
     std::vector<std::unique_ptr<Function>> &getFunctions() {
         return functions;
+    }
+};
+
+class ProgramWithLoopAnalysis : public Program {
+public:
+    void analyzeLoops() {
+        for (const auto& func : getFunctions()) {
+            LoopAnalysis::analyzeLoopNesting(*func);
+        }
+    }
+
+    void dumpWithLoopAnalysis() {
+        dump();
+        std::cout << "\n\n";
+        analyzeLoops();
     }
 };

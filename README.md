@@ -11,14 +11,10 @@ ninja
 ./jit_aot_course
 ```
 
-## Result
+## Results
 
+### BASIC FUNCTION DUMP:
 ```sh
-============================================================
-BASIC FUNCTION DUMP:
-============================================================
-
-
 Function simple_factorial(n)
 entry:
   return one
@@ -71,10 +67,11 @@ loop_body:
   jump loop_check
 exit:
   return %v3
+```
 
-============================================================
-CFG ANALYSIS:
-============================================================
+### CFG ANALYSIS:
+
+```sh
 Function simple_factorial CFG:
 entry:
   Predecessors:
@@ -186,8 +183,7 @@ exit:
   return %v3
 ```
 
-
-## Tests
+### Tests for CFG analysis
 
 ```sh
 Dominators for example1:
@@ -222,4 +218,12 @@ D: D A B
 C: A C B
 B: B A
 A: A
+```
+
+
+### LOOP ANALYSIS:
+
+### Tests for loop analysis
+
+```
 ```

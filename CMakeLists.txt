@@ -24,5 +24,14 @@ add_executable(graph_examples
 
 target_include_directories(graph_examples PRIVATE include)
 
+add_executable(loop_examples
+    loop_analyser_examples.cpp
+    src/context.cpp
+    src/instruction.cpp
+)
+
+target_include_directories(loop_examples PRIVATE include)
+
+
 enable_testing()
 add_test(NAME GraphExamples COMMAND graph_examples)
