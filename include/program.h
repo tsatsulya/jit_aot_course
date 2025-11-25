@@ -7,6 +7,9 @@
 #include "cfg.h"
 #include "loop_analysis.h"
 #include "function.h"
+#include "constant_folding.h"
+#include "peephole_optimizer.h"
+
 class Program {
     std::vector<std::unique_ptr<Function>> functions;
 
@@ -73,6 +76,18 @@ public:
     void dumpWithCFG() const {
         for (const auto& func : functions) {
             dumpFunctionCFG(*func);
+        }
+    }
+
+    void runConstantFolding() {
+        for (auto& func : functions) {
+            ConstantFoldingPass::runOnFunction(*func);
+        }
+    }
+
+    void runPeepholeOptimization() {
+        for (auto& func : functions) {
+            PeepholePass::runOnFunction(*func);
         }
     }
 

@@ -17,6 +17,9 @@ public:
             case InstrKind::Add: op = "add"; break;
             case InstrKind::Mul: op = "mul"; break;
             case InstrKind::Sub: op = "sub"; break;
+            case InstrKind::Shr: op = "shr"; break;
+            case InstrKind::Shl: op = "shl"; break;
+            case InstrKind::And: op = "and"; break;
             default: op = "unknown"; break;
         }
         return ctx.getValueName(this) + " = " + op + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
@@ -32,6 +35,9 @@ public:
             case InstrKind::Add: op = "add"; break;
             case InstrKind::Mul: op = "mul"; break;
             case InstrKind::Sub: op = "sub"; break;
+            case InstrKind::Shr: op = "shr"; break;
+            case InstrKind::Shl: op = "shl"; break;
+            case InstrKind::And: op = "and"; break;
             default: op = "unknown"; break;
         }
         os << op << " " << operands[0] << ", " << operands[1];

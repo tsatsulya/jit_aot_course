@@ -6,7 +6,7 @@
 class BasicBlock;
 class NameContext;
 
-enum class InstrKind { Add, Mul, Sub, Jump, CondJump, Return, Param, Cmp, Phi };
+enum class InstrKind { Add, Mul, Sub, Jump, CondJump, Return, Param, Cmp, Phi, Shr, And, Shl };
 
 class Value {
 public:

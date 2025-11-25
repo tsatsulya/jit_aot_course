@@ -21,6 +21,7 @@ public:
 
     const std::string& getName() const { return name; }
     const std::vector<std::unique_ptr<Instruction>>& getInstructions() const { return instructions; }
+    std::vector<std::unique_ptr<Instruction>>& getInstructions() { return instructions; }
     const std::unordered_set<BasicBlock*>& getPredecessors() const { return predecessors; }
     const std::unordered_set<BasicBlock*>& getSuccessors() const { return successors; }
 
@@ -38,4 +39,3 @@ public:
     void clearPredecessors() { predecessors.clear(); }
     void clearSuccessors() { successors.clear(); }
 };
-
