@@ -33,5 +33,16 @@ add_executable(loop_examples
 target_include_directories(loop_examples PRIVATE include)
 
 
+find_package(GTest REQUIRED)
+
+add_executable(run_tests test_optimizations.cpp
+    src/instruction.cpp
+    src/context.cpp
+)
+
+target_link_libraries(run_tests GTest::GTest GTest::Main)
+target_include_directories(run_tests PRIVATE include)
+
 enable_testing()
 add_test(NAME GraphExamples COMMAND graph_examples)
+add_test(NAME OptimizationsTest COMMAND run_tests)
