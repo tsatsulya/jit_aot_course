@@ -67,7 +67,18 @@ add_executable(run_liveness_tests tests/test_liveness.cpp
 target_link_libraries(run_liveness_tests GTest::GTest GTest::Main)
 target_include_directories(run_liveness_tests PRIVATE include)
 
+
+add_executable(run_register_tests tests/test_register_allocator.cpp
+    src/instruction.cpp
+    src/context.cpp
+)
+
+target_link_libraries(run_register_tests GTest::GTest GTest::Main)
+target_include_directories(run_register_tests PRIVATE include)
+
+
 enable_testing()
+add_test(NAME RegisterAllocatorTest COMMAND run_register_tests)
 add_test(NAME GraphExamples COMMAND graph_examples)
 add_test(NAME OptimizationsTest COMMAND run_tests)
 add_test(NAME LivenessTest COMMAND run_liveness_tests)
