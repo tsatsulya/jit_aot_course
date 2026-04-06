@@ -67,6 +67,13 @@ add_executable(run_liveness_tests tests/test_liveness.cpp
 target_link_libraries(run_liveness_tests GTest::GTest GTest::Main)
 target_include_directories(run_liveness_tests PRIVATE include)
 
+add_executable(inlining_example
+    tests/inlining.cpp
+    src/context.cpp
+    src/instruction.cpp
+)
+target_include_directories(inlining_example PRIVATE include)
+
 enable_testing()
 add_test(NAME GraphExamples COMMAND graph_examples)
 add_test(NAME OptimizationsTest COMMAND run_tests)
