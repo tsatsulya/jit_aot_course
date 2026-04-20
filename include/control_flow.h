@@ -25,6 +25,8 @@ public:
             os << "return";
         }
     }
+
+    Value* getReturnValue() const { return retVal; }
 };
 
 class Jump : public Instruction {
@@ -52,6 +54,10 @@ public:
 
     BasicBlock* getTarget() const {
         return targetBlock;
+    }
+
+    void setTargetName(const std::string& target) {
+        targetName = target;
     }
 
     void updateCFG() override {
@@ -104,6 +110,11 @@ public:
     const std::string& getTrueTargetName() const { return trueTargetName; }
     const std::string& getFalseTargetName() const { return falseTargetName; }
 
+    void setTargetNames(const std::string& trueTarget, const std::string& falseTarget) {
+        trueTargetName = trueTarget;
+        falseTargetName = falseTarget;
+    }
+
     BasicBlock* getTrueTarget() const {
         return trueTargetBlock;
     }
@@ -149,6 +160,16 @@ public:
     void addIncoming(BasicBlock* pred, Value* val) {
         incoming.emplace_back(pred, val);
         operands.push_back(val);
+    }
+
+    void replaceIncomingValue(Value* oldValue, Value* newValue) {
+        for (auto& [pred, val] : incoming) {
+            (void)pred;
+            if (val == oldValue) {
+                val = newValue;
+            }
+        }
+        replaceOperand(oldValue, newValue);
     }
 
     std::string str(NameContext& ctx) const override {

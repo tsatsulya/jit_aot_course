@@ -34,6 +34,16 @@ InstrKind Instruction::getKind() const { return kind; }
 
 const std::vector<Value*>& Instruction::getOperands() const { return operands; }
 
+std::vector<Value*>& Instruction::getOperands() { return operands; }
+
+void Instruction::replaceOperand(Value* oldValue, Value* newValue) {
+    for (auto& operand : operands) {
+        if (operand == oldValue) {
+            operand = newValue;
+        }
+    }
+}
+
 Value::ValueKind Instruction::getValueKind() const {
     return Value::ValueKind::Instruction;
 }

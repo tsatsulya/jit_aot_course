@@ -6,7 +6,7 @@
 class BasicBlock;
 class NameContext;
 
-enum class InstrKind { Add, Mul, Sub, Jump, CondJump, Return, Param, Cmp, Phi, Shr, And, Shl };
+enum class InstrKind { Add, Mul, Sub, Jump, CondJump, Return, Param, Cmp, Phi, Shr, And, Shl, Call };
 
 class Value {
 public:
@@ -48,6 +48,8 @@ public:
     Instruction(InstrKind k, const std::vector<Value*>& ops);
     virtual InstrKind getKind() const;
     virtual const std::vector<Value*>& getOperands() const;
+    virtual std::vector<Value*>& getOperands();
+    void replaceOperand(Value* oldValue, Value* newValue);
     virtual ~Instruction() = default;
     ValueKind getValueKind() const override;
 

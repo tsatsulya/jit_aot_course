@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <iostream>
+#include <algorithm>
 
 
 #include "instruction.h"
@@ -12,6 +13,9 @@ class Function {
     std::vector<std::unique_ptr<Parameter>> parameters;
     std::vector<std::unique_ptr<BasicBlock>> basicBlocks;
     std::vector<std::unique_ptr<Constant>> constants;
+    bool native = false;
+    bool external = false;
+    bool inlineBlacklisted = false;
 
 public:
     Function(const std::string& nm) : name(nm) {}
@@ -34,4 +38,19 @@ public:
     const std::string& getName() const { return name; }
     const std::vector<std::unique_ptr<Parameter>>& getParams() const { return parameters; }
     const std::vector<std::unique_ptr<BasicBlock>>& getBasicBlocks() const { return basicBlocks; }
+    std::vector<std::unique_ptr<BasicBlock>>& getBasicBlocks() { return basicBlocks; }
+    const std::vector<std::unique_ptr<Constant>>& getConstants() const { return constants; }
+
+    void setNative(bool value) { native = value; }
+    void setExternal(bool value) { external = value; }
+    void setInlineBlacklisted(bool value) { inlineBlacklisted = value; }
+    bool isNative() const { return native; }
+    bool isExternal() const { return external; }
+    bool isInlineBlacklisted() const { return inlineBlacklisted; }
+
+    void removeBasicBlock(BasicBlock* block) {
+        basicBlocks.erase(std::remove_if(basicBlocks.begin(), basicBlocks.end(),
+                                         [block](const auto& bb) { return bb.get() == block; }),
+                          basicBlocks.end());
+    }
 };

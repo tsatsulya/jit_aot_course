@@ -3,6 +3,8 @@
 #include "constant_folding.h"
 #include "peephole_optimizer.h"
 #include "bin_ops.h"
+#include "call.h"
+#include "static_inliner.h"
 
 class OptimizationsTest : public ::testing::Test {
 protected:
@@ -39,6 +41,39 @@ protected:
             }
         }
         return false;
+    }
+
+    int countCalls(const Function& func) {
+        int count = 0;
+        for (const auto& bb : func.getBasicBlocks()) {
+            for (const auto& instr : bb->getInstructions()) {
+                if (dynamic_cast<Call*>(instr.get())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    BasicBlock* findBlock(Function& func, const std::string& namePart) {
+        for (auto& bb : func.getBasicBlocks()) {
+            if (bb->getName().find(namePart) != std::string::npos) {
+                return bb.get();
+            }
+        }
+        return nullptr;
+    }
+
+    int countPhiInstructions(const Function& func) {
+        int count = 0;
+        for (const auto& bb : func.getBasicBlocks()) {
+            for (const auto& instr : bb->getInstructions()) {
+                if (dynamic_cast<Phi*>(instr.get())) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 };
 
@@ -372,4 +407,81 @@ TEST_F(OptimizationsTest, PeepholeMultipleOptimizationsInSequence) {
     EXPECT_EQ(countInstructions(func, InstrKind::Mul), 0);
     EXPECT_EQ(countInstructions(func, InstrKind::And), 0);
     EXPECT_EQ(countInstructions(func, InstrKind::Shr), 0);
+}
+
+TEST_F(OptimizationsTest, StaticInliningSingleReturnReplacesCallUses) {
+    Function& callee = program->createFunction("add_one");
+    Parameter* x = callee.createParam("x");
+    Constant* one = callee.createConstant(1, "1");
+    BasicBlock* calleeEntry = callee.createBasicBlock("entry");
+    auto& sum = calleeEntry->createInstr<BinaryOp>(InstrKind::Add, x, one);
+    calleeEntry->createInstr<Return>(&sum);
+
+    Function& caller = program->createFunction("caller");
+    Parameter* y = caller.createParam("y");
+    Constant* two = caller.createConstant(2, "2");
+    BasicBlock* entry = caller.createBasicBlock("entry");
+    auto& call = entry->createInstr<Call>(&callee, std::vector<Value*>{y});
+    entry->createInstr<BinaryOp>(InstrKind::Mul, &call, two);
+
+    StaticInlinerPass::Config config;
+    config.runLocalOptimizations = false;
+    ASSERT_TRUE(StaticInlinerPass::runOnFunction(caller, config));
+
+    EXPECT_EQ(countCalls(caller), 0);
+    EXPECT_EQ(countInstructions(caller, InstrKind::Add), 1);
+    EXPECT_EQ(countInstructions(caller, InstrKind::Mul), 1);
+
+    BasicBlock* continuation = findBlock(caller, "cont");
+    ASSERT_NE(continuation, nullptr);
+    ASSERT_FALSE(continuation->getInstructions().empty());
+    auto* mul = dynamic_cast<BinaryOp*>(continuation->getInstructions().front().get());
+    ASSERT_NE(mul, nullptr);
+    EXPECT_EQ(mul->getOperands()[0]->getValueKind(), Value::ValueKind::Instruction);
+    EXPECT_EQ(dynamic_cast<Call*>(mul->getOperands()[0]), nullptr) << "call value should have been replaced";
+}
+
+TEST_F(OptimizationsTest, StaticInliningMultipleReturnsCreatesPhi) {
+    Function& callee = program->createFunction("choose_value");
+    Parameter* a = callee.createParam("a");
+    Parameter* b = callee.createParam("b");
+    Constant* one = callee.createConstant(1, "1");
+    BasicBlock* start = callee.createBasicBlock("start");
+    BasicBlock* branch = callee.createBasicBlock("branch");
+    BasicBlock* left = callee.createBasicBlock("left");
+    BasicBlock* right = callee.createBasicBlock("right");
+
+    start->createInstr<Jump>("branch");
+    branch->createInstr<BinaryOp>(InstrKind::Add, a, one);
+    branch->createInstr<CondJump>("lecture_condition", "left", "right");
+    left->createInstr<Return>(a);
+    right->createInstr<Return>(b);
+
+    CFGAnalysis::buildCFG(callee);
+
+    Function& caller = program->createFunction("caller_with_branch");
+    Constant* two = caller.createConstant(2, "2");
+    Constant* three = caller.createConstant(3, "3");
+    Constant* four = caller.createConstant(4, "4");
+    BasicBlock* entry = caller.createBasicBlock("entry");
+    auto& call = entry->createInstr<Call>(&callee, std::vector<Value*>{two, three});
+    entry->createInstr<BinaryOp>(InstrKind::Mul, &call, four);
+
+    StaticInlinerPass::Config config;
+    config.runLocalOptimizations = false;
+    ASSERT_TRUE(StaticInlinerPass::runOnFunction(caller, config));
+
+    EXPECT_EQ(countCalls(caller), 0);
+    EXPECT_EQ(countPhiInstructions(caller), 1);
+
+    BasicBlock* continuation = findBlock(caller, "cont");
+    ASSERT_NE(continuation, nullptr);
+    ASSERT_GE(continuation->getInstructions().size(), 2U);
+    auto* phi = dynamic_cast<Phi*>(continuation->getInstructions()[0].get());
+    ASSERT_NE(phi, nullptr);
+    EXPECT_EQ(phi->getIncoming().size(), 2U);
+
+    auto* mul = dynamic_cast<BinaryOp*>(continuation->getInstructions()[1].get());
+    ASSERT_NE(mul, nullptr);
+    EXPECT_EQ(mul->getOperands()[0], phi);
 }

@@ -50,6 +50,8 @@ class Cmp : public Instruction {
 public:
     Cmp(CmpOp op, Value* lhs, Value* rhs) : Instruction(InstrKind::Cmp, {lhs, rhs}), cmpOp(op) {}
 
+    CmpOp getCmpOp() const { return cmpOp; }
+
     std::string str(NameContext& ctx) const override {
         const char* names[] = {"eq","ne","lt","le","gt","ge"};
         return ctx.getValueName(this) + " = cmp." + names[(int)cmpOp] + " " + ctx.getValueName(operands[0]) + ", " + ctx.getValueName(operands[1]);
