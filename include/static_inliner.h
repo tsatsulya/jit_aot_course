@@ -3,6 +3,7 @@
 #include "bin_ops.h"
 #include "call.h"
 #include "cfg.h"
+#include "checks.h"
 #include "constant_folding.h"
 #include "control_flow.h"
 #include "peephole_optimizer.h"
@@ -135,15 +136,17 @@ private:
         mapParametersAndConstants(caller, callee, arguments, state);
         cloneBlocks(caller, callee, prefix, state);
         cloneInstructions(caller, callee, continuation, state);
-        wireCallBlock(callBlock, callee, state);
         Value* replacement = buildReturnValue(continuation, state);
         replaceAllUses(caller, oldCallValue, replacement);
+        removeCallInstruction(callBlock, callIndex);
+        wireCallBlock(callBlock, callee, state);
         removeUnreachableBlocks(caller);
         CFGAnalysis::buildCFG(caller);
 
         if (config.runLocalOptimizations) {
             PeepholePass::runOnFunction(caller);
             ConstantFoldingPass::runOnFunction(caller);
+            DominatedCheckEliminationPass::runOnFunction(caller);
         }
     }
 
@@ -158,8 +161,17 @@ private:
         for (size_t i = callIndex + 1; i < callInstructions.size(); ++i) {
             continuationInstructions.push_back(std::move(callInstructions[i]));
         }
-        callInstructions.erase(callInstructions.begin() + callIndex, callInstructions.end());
+        callInstructions.erase(callInstructions.begin() + static_cast<std::ptrdiff_t>(callIndex + 1),
+                               callInstructions.end());
         return continuation;
+    }
+
+    static void removeCallInstruction(BasicBlock& callBlock, size_t callIndex) {
+        auto& callInstructions = callBlock.getInstructions();
+        if (callIndex < callInstructions.size()) {
+            callInstructions[callIndex]->dropAllOperands();
+            callInstructions.erase(callInstructions.begin() + static_cast<std::ptrdiff_t>(callIndex));
+        }
     }
 
     static void mapParametersAndConstants(Function& caller,
@@ -218,6 +230,17 @@ private:
             return new Cmp(cmp->getCmpOp(),
                            mapValue(caller, cmp->getOperands()[0], state),
                            mapValue(caller, cmp->getOperands()[1], state));
+        }
+        if (auto* constant = dynamic_cast<const ConstantInstruction*>(&oldInstr)) {
+            return new ConstantInstruction(constant->getConstant()->getValue(),
+                                           constant->getConstant()->getName());
+        }
+        if (auto* nullCheck = dynamic_cast<const NullCheck*>(&oldInstr)) {
+            return new NullCheck(mapValue(caller, nullCheck->getObject(), state));
+        }
+        if (auto* boundsCheck = dynamic_cast<const BoundsCheck*>(&oldInstr)) {
+            return new BoundsCheck(mapValue(caller, boundsCheck->getObject(), state),
+                                   mapValue(caller, boundsCheck->getIndex(), state));
         }
         if (auto* jump = dynamic_cast<const Jump*>(&oldInstr)) {
             return new Jump(mappedBlockName(jump->getTargetName(), state));

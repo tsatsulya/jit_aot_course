@@ -3,6 +3,7 @@
 #include "instruction.h"
 #include "basic_block.h"
 #include "bin_ops.h"
+#include <cstddef>
 #include <memory>
 #include <functional>
 
@@ -19,7 +20,7 @@ public:
                     applyAndPeepholes(binaryOp, bb, i) ||
                     applyShrPeepholes(binaryOp, bb, i)) {
                     changed = true;
-                    i = 0;
+                    i = static_cast<size_t>(-1);
                     continue;
                 }
             }
@@ -140,39 +141,40 @@ private:
         return false;
     }
 
-    static void replaceWithConstant(BinaryOp* /* op */, int constantValue, BasicBlock& bb, size_t index) {
-        auto constant = new Constant(constantValue, std::to_string(constantValue));
-        replaceInstruction(bb, index, constant);
+    static void replaceWithConstant(BinaryOp* op, int constantValue, BasicBlock& bb, size_t index) {
+        auto constant = std::make_unique<ConstantInstruction>(constantValue);
+        replaceInstruction(bb, index, op, std::move(constant));
     }
 
-    static void replaceWithOperand(BinaryOp* /* op */, Value* operand, BasicBlock& bb, size_t index) {
-        replaceInstruction(bb, index, operand);
+    static void replaceWithOperand(BinaryOp* op, Value* operand, BasicBlock& bb, size_t index) {
+        if (auto* constant = dynamic_cast<Constant*>(operand)) {
+            auto replacement = std::make_unique<ConstantInstruction>(constant->getValue(), constant->getName());
+            replaceInstruction(bb, index, op, std::move(replacement));
+            return;
+        }
+        replaceUsesAfter(bb, index, op, operand);
+        op->dropAllOperands();
+        bb.getInstructions().erase(bb.getInstructions().begin() + static_cast<std::ptrdiff_t>(index));
     }
 
-    static void replaceWithInstruction(BinaryOp* /* oldOp */, Instruction* newInstr, BasicBlock& bb, size_t index) {
-        replaceInstruction(bb, index, newInstr);
+    static void replaceWithInstruction(BinaryOp* oldOp, Instruction* newInstr, BasicBlock& bb, size_t index) {
+        replaceInstruction(bb, index, oldOp, std::unique_ptr<Instruction>(newInstr));
     }
 
-    static void replaceInstruction(BasicBlock& bb, size_t index, Value* newValue) {
+    static void replaceInstruction(BasicBlock& bb,
+                                   size_t index,
+                                   Instruction* oldInstr,
+                                   std::unique_ptr<Instruction> newInstr) {
+        Instruction* replacement = newInstr.get();
+        replaceUsesAfter(bb, index, oldInstr, replacement);
+        oldInstr->dropAllOperands();
+        bb.getInstructions()[index] = std::move(newInstr);
+    }
 
-        auto& instructions = const_cast<std::vector<std::unique_ptr<Instruction>>&>(bb.getInstructions());
-
-        if (auto newInstr = dynamic_cast<Instruction*>(newValue)) {
-            instructions[index] = std::unique_ptr<Instruction>(newInstr);
-        } else {
-            class ConstantWrapper : public Instruction {
-                Constant* constant;
-            public:
-                ConstantWrapper(Constant* c) : Instruction(InstrKind::Add, {}), constant(c) {}
-                std::string str(NameContext& ctx) const override {
-                    return constant->str(ctx);
-                }
-                void updateCFG() override {}
-                void print(std::ostream& os) const override {
-                    os << constant->str(*new NameContext());
-                }
-            };
-            instructions[index] = std::make_unique<ConstantWrapper>(dynamic_cast<Constant*>(newValue));
+    static void replaceUsesAfter(BasicBlock& bb, size_t index, Value* oldValue, Value* newValue) {
+        auto& instructions = bb.getInstructions();
+        for (size_t i = index + 1; i < instructions.size(); ++i) {
+            instructions[i]->replaceOperand(oldValue, newValue);
         }
     }
 

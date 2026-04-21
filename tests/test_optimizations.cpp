@@ -4,6 +4,8 @@
 #include "peephole_optimizer.h"
 #include "bin_ops.h"
 #include "call.h"
+#include "checks.h"
+#include "dominated_checks.h"
 #include "static_inliner.h"
 
 class OptimizationsTest : public ::testing::Test {
@@ -34,8 +36,8 @@ protected:
 
     bool containsConstant(const BasicBlock& bb, int value) {
         for (const auto& instr : bb.getInstructions()) {
-            if (auto constant = dynamic_cast<Constant*>(instr.get())) {
-                if (constant->getValue() == value) {
+            if (auto constant = dynamic_cast<ConstantInstruction*>(instr.get())) {
+                if (constant->getConstant()->getValue() == value) {
                     return true;
                 }
             }
@@ -69,6 +71,18 @@ protected:
         for (const auto& bb : func.getBasicBlocks()) {
             for (const auto& instr : bb->getInstructions()) {
                 if (dynamic_cast<Phi*>(instr.get())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    int countChecks(const Function& func, InstrKind kind) {
+        int count = 0;
+        for (const auto& bb : func.getBasicBlocks()) {
+            for (const auto& instr : bb->getInstructions()) {
+                if (instr->getKind() == kind) {
                     count++;
                 }
             }
@@ -326,10 +340,10 @@ TEST_F(OptimizationsTest, CombinedOptimizations) {
 
     Constant* c4 = func.createConstant(4, "4");
     Constant* c0 = func.createConstant(0, "0");
-    Constant* c1 = func.createConstant(1, "1");
+    Constant* minusOne = func.createConstant(-1, "-1");
 
     bb->createInstr<BinaryOp>(InstrKind::Mul, c4, c0);
-    bb->createInstr<BinaryOp>(InstrKind::And, c4, c1);
+    bb->createInstr<BinaryOp>(InstrKind::And, c4, minusOne);
 
     EXPECT_EQ(countInstructions(func, InstrKind::Mul), 1);
     EXPECT_EQ(countInstructions(func, InstrKind::And), 1);
@@ -392,10 +406,10 @@ TEST_F(OptimizationsTest, PeepholeMultipleOptimizationsInSequence) {
 
     Parameter* param = func.createParam("x");
     Constant* zero = func.createConstant(0, "0");
-    Constant* one = func.createConstant(1, "1");
+    Constant* minusOne = func.createConstant(-1, "-1");
 
     bb->createInstr<BinaryOp>(InstrKind::Mul, param, zero);
-    bb->createInstr<BinaryOp>(InstrKind::And, param, one);
+    bb->createInstr<BinaryOp>(InstrKind::And, param, minusOne);
     bb->createInstr<BinaryOp>(InstrKind::Shr, param, zero);
 
     EXPECT_EQ(countInstructions(func, InstrKind::Mul), 1);
@@ -407,6 +421,75 @@ TEST_F(OptimizationsTest, PeepholeMultipleOptimizationsInSequence) {
     EXPECT_EQ(countInstructions(func, InstrKind::Mul), 0);
     EXPECT_EQ(countInstructions(func, InstrKind::And), 0);
     EXPECT_EQ(countInstructions(func, InstrKind::Shr), 0);
+}
+
+TEST_F(OptimizationsTest, DominatedNullCheckInSameBlockIsRemoved) {
+    Function& func = program->createFunction("dominated_null_same_block");
+    Parameter* object = func.createParam("obj");
+    BasicBlock* entry = func.createBasicBlock("entry");
+
+    entry->createInstr<NullCheck>(object);
+    entry->createInstr<NullCheck>(object);
+
+    EXPECT_EQ(countChecks(func, InstrKind::NullCheck), 2);
+
+    EXPECT_TRUE(DominatedCheckEliminationPass::runOnFunction(func));
+
+    EXPECT_EQ(countChecks(func, InstrKind::NullCheck), 1);
+    EXPECT_EQ(object->getUsers().size(), 1U);
+}
+
+TEST_F(OptimizationsTest, DominatedNullCheckAcrossBlocksIsRemoved) {
+    Function& func = program->createFunction("dominated_null_across_blocks");
+    Parameter* object = func.createParam("obj");
+    BasicBlock* entry = func.createBasicBlock("entry");
+    BasicBlock* body = func.createBasicBlock("body");
+
+    entry->createInstr<NullCheck>(object);
+    entry->createInstr<Jump>("body");
+    body->createInstr<NullCheck>(object);
+
+    CFGAnalysis::buildCFG(func);
+    EXPECT_TRUE(DominatedCheckEliminationPass::runOnFunction(func));
+
+    EXPECT_EQ(countChecks(func, InstrKind::NullCheck), 1);
+}
+
+TEST_F(OptimizationsTest, NonDominatingNullCheckIsKept) {
+    Function& func = program->createFunction("non_dominating_null");
+    Parameter* object = func.createParam("obj");
+    BasicBlock* entry = func.createBasicBlock("entry");
+    BasicBlock* left = func.createBasicBlock("left");
+    BasicBlock* right = func.createBasicBlock("right");
+    BasicBlock* merge = func.createBasicBlock("merge");
+
+    entry->createInstr<CondJump>("cond", "left", "right");
+    left->createInstr<NullCheck>(object);
+    left->createInstr<Jump>("merge");
+    right->createInstr<Jump>("merge");
+    merge->createInstr<NullCheck>(object);
+
+    CFGAnalysis::buildCFG(func);
+    EXPECT_FALSE(DominatedCheckEliminationPass::runOnFunction(func));
+
+    EXPECT_EQ(countChecks(func, InstrKind::NullCheck), 2);
+}
+
+TEST_F(OptimizationsTest, DominatedBoundsCheckRequiresSameObjectAndIndex) {
+    Function& func = program->createFunction("dominated_bounds");
+    Parameter* array = func.createParam("array");
+    Parameter* index = func.createParam("i");
+    Parameter* otherIndex = func.createParam("j");
+    BasicBlock* entry = func.createBasicBlock("entry");
+
+    entry->createInstr<BoundsCheck>(array, index);
+    entry->createInstr<BoundsCheck>(array, index);
+    entry->createInstr<BoundsCheck>(array, otherIndex);
+
+    EXPECT_TRUE(DominatedCheckEliminationPass::runOnFunction(func));
+
+    EXPECT_EQ(countChecks(func, InstrKind::BoundsCheck), 2);
+    EXPECT_EQ(array->getUsers().size(), 2U);
 }
 
 TEST_F(OptimizationsTest, StaticInliningSingleReturnReplacesCallUses) {

@@ -159,7 +159,7 @@ public:
 
     void addIncoming(BasicBlock* pred, Value* val) {
         incoming.emplace_back(pred, val);
-        operands.push_back(val);
+        addOperand(val);
     }
 
     void replaceIncomingValue(Value* oldValue, Value* newValue) {

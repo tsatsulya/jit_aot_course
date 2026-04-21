@@ -3,7 +3,9 @@
 #include "instruction.h"
 #include "basic_block.h"
 #include "bin_ops.h"
+#include "function.h"
 #include <memory>
+#include <optional>
 
 class ConstantFolding {
 public:
@@ -20,13 +22,15 @@ public:
                     binaryOp->getKind() == InstrKind::Shr ||
                     binaryOp->getKind() == InstrKind::Shl ||
                     binaryOp->getKind() == InstrKind::And) {
-                    Value* folded = tryFoldBinaryOp(binaryOp);
-                    if (folded) {
-                        replaceAllUsesWith(binaryOp, folded, bb);
+                    std::optional<int> folded = tryFoldBinaryOp(binaryOp);
+                    if (folded.has_value()) {
+                        auto foldedInstr = std::make_unique<ConstantInstruction>(*folded);
+                        ConstantInstruction* replacement = foldedInstr.get();
+                        replaceAllUsesWith(binaryOp, replacement, bb);
 
-                        it = instructions.erase(it);
+                        binaryOp->dropAllOperands();
+                        *it = std::move(foldedInstr);
                         changed = true;
-                        continue;
                     }
                 }
             }
@@ -38,12 +42,12 @@ public:
     }
 
 private:
-    static Value* tryFoldBinaryOp(BinaryOp* op) {
+    static std::optional<int> tryFoldBinaryOp(BinaryOp* op) {
         auto lhs = dynamic_cast<Constant*>(op->getOperands()[0]);
         auto rhs = dynamic_cast<Constant*>(op->getOperands()[1]);
 
         if (!lhs || !rhs) {
-            return nullptr;
+            return std::nullopt;
         }
 
         int lhsVal = lhs->getValue();
@@ -56,13 +60,13 @@ private:
                 break;
             case InstrKind::Shr:
                 if (rhsVal < 0 || rhsVal >= 32) {
-                    return nullptr;
+                    return std::nullopt;
                 }
                 result = static_cast<unsigned int>(lhsVal) >> rhsVal;
                 break;
             case InstrKind::Shl:
                 if (rhsVal < 0 || rhsVal >= 32) {
-                    return nullptr;
+                    return std::nullopt;
                 }
                 result = lhsVal << rhsVal;
                 break;
@@ -70,10 +74,10 @@ private:
                 result = lhsVal & rhsVal;
                 break;
             default:
-                return nullptr;
+                return std::nullopt;
         }
 
-        return new Constant(result, std::to_string(result));
+        return result;
     }
 
     static void replaceAllUsesWith(Instruction* oldInstr, Value* newVal, BasicBlock& bb) {
@@ -87,12 +91,7 @@ private:
             }
 
             if (foundOld) {
-                auto& operands = const_cast<std::vector<Value*>&>(instr->getOperands());
-                for (auto& operand : operands) {
-                    if (operand == oldInstr) {
-                        operand = newVal;
-                    }
-                }
+                instr->replaceOperand(oldInstr, newVal);
             }
         }
     }

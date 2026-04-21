@@ -9,6 +9,7 @@
 #include "function.h"
 #include "constant_folding.h"
 #include "peephole_optimizer.h"
+#include "dominated_checks.h"
 
 class Program {
     std::vector<std::unique_ptr<Function>> functions;
@@ -88,6 +89,20 @@ public:
     void runPeepholeOptimization() {
         for (auto& func : functions) {
             PeepholePass::runOnFunction(*func);
+        }
+    }
+
+    void runDominatedCheckElimination() {
+        for (auto& func : functions) {
+            DominatedCheckEliminationPass::runOnFunction(*func);
+        }
+    }
+
+    void runOptimizations() {
+        for (auto& func : functions) {
+            PeepholePass::runOnFunction(*func);
+            ConstantFoldingPass::runOnFunction(*func);
+            DominatedCheckEliminationPass::runOnFunction(*func);
         }
     }
 

@@ -11,8 +11,8 @@
 class Function {
     std::string name;
     std::vector<std::unique_ptr<Parameter>> parameters;
-    std::vector<std::unique_ptr<BasicBlock>> basicBlocks;
     std::vector<std::unique_ptr<Constant>> constants;
+    std::vector<std::unique_ptr<BasicBlock>> basicBlocks;
     bool native = false;
     bool external = false;
     bool inlineBlacklisted = false;
